@@ -1,0 +1,47 @@
+# Node dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Build output
+build/
+dist/
+.tmp/
+tmp/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# OS files
+.DS_Store
+
+# Editor/project files
+.vscode/
+.idea/
+*.iml
+
+# Cache
+*.cache
+.cache/
+
+# ngrok (if present locally)
+.ngrok2/
+ngrok.yml
