@@ -45,3 +45,5 @@ coverage/
 # ngrok (if present locally)
 .ngrok2/
 ngrok.yml
+
+firebaseKey.json
