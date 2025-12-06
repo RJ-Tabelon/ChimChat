@@ -47,3 +47,4 @@ coverage/
 ngrok.yml
 
 firebaseKey.json
+rtdb.json

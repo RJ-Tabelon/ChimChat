@@ -4,6 +4,7 @@ const messageInput = document.getElementById('message-input');
 const nameInput = document.getElementById('name-input');
 const sendBtn = document.getElementById('send-btn');
 const chatDisplay = document.getElementById('chat-display');
+const typingEl = document.getElementById('typing-indicator');
 
 let toxicityModel = null;
 const TOXICITY_THRESHOLD = 0.9;
@@ -120,4 +121,18 @@ function appendMessage(data, isSelf = false) {
 socket.on('chatMessage', data => {
   const isSelf = nameInput.value.trim() && data.name === nameInput.value.trim();
   appendMessage(data, isSelf);
+});
+
+socket.on('typing', payload => {
+  try {
+    if (payload && payload.name === 'AI') {
+      if (payload.typing) {
+        typingEl.hidden = false;
+      } else {
+        typingEl.hidden = true;
+      }
+    }
+  } catch (e) {
+    console.error('Typing indicator error:', e);
+  }
 });

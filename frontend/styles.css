@@ -2,9 +2,9 @@
   --sage-100: #f4f8f5;
   --sage-200: #e8f2ea;
   --sage-300: #cfe3d4;
-  --sage-400: #bcd4b3; 
-  --sage-500: #88b098; 
-  --sage-700: #355e3b; 
+  --sage-400: #bcd4b3;
+  --sage-500: #88b098;
+  --sage-700: #355e3b;
   --ink: #2f3e34;
   --white: #ffffff;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
@@ -41,7 +41,7 @@ body.app {
   border-radius: 24px;
   box-shadow: var(--shadow);
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   overflow: hidden;
   border: 1px solid rgba(53, 94, 59, 0.08);
 }
@@ -129,6 +129,15 @@ body.app {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.typing-indicator {
+  padding: 8px 16px;
+  background: #fff9e6;
+  color: #8a6d3b;
+  border-top: 1px solid rgba(53, 94, 59, 0.08);
+  border-bottom: 1px solid rgba(53, 94, 59, 0.08);
+  font-size: 0.9rem;
 }
 
 .message {
@@ -228,3 +237,4 @@ body.app {
     max-width: 86%;
   }
 }
+
