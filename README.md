@@ -1,283 +1,277 @@
 # ChimChat
 
-A modern, real-time group chat application with AI capabilities, built with Express + Socket.IO and featuring a clean sage-green themed interface. ChimChat combines instant messaging with intelligent AI features like conversation summarization, context-aware Q&A, and IoT sensor data analysis.
+ChimChat is a small real-time group chat app for local development and demos. It combines Socket.IO messaging with message persistence in Firebase Firestore, and optional AI commands backed by a local Ollama instance.
 
 ![ChimChat UI](./ui-ux.png)
 
-## 📋 Quick Summary
+## Key Features
 
-ChimChat is a real-time chat app that lets users communicate instantly in a shared group space. It integrates with Firebase Firestore for persistent message storage and includes AI-powered features powered by Ollama, toxicity filtering for safe messaging, and an intuitive, responsive UI with a calming sage-green color scheme. Messages are preserved between sessions, typing indicators provide feedback when AI is responding, and the app can be deployed locally or shared externally using ngrok.
+- Real-time group chat using Socket.IO
+- Message persistence in Firebase Firestore (server loads last 10 messages on connect)
+- Username stored in browser localStorage
+- AI commands handled by the server (Ollama): `/summarize`, `/question <text>`, `/environment` (optional)
+- Client-side toxicity filtering (TensorFlow.js toxicity model; toxic messages are replaced with `*****` before sending)
+- “AI is typing…” indicator during AI command processing
 
-## ✨ Features
+## System Overview
 
-### Core Chat Features
+### Architecture
 
-- **Real-time Messaging**: Instant message delivery to all connected users via Socket.IO
-- **Message Persistence**: All messages stored in Firebase Firestore with automatic loading of recent conversation history (last 10 messages)
-- **User Names**: Persistent username storage with localStorage, so users don't need to re-enter their name
-- **Clean UI**: Message bubbles with distinct styling for self vs. other users, auto-scrolling chat display
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
-- **Accessibility**: ARIA labels and semantic HTML for screen reader support
+```mermaid
+flowchart LR
+  U[Browser UI\nfrontend/index.html + chat.js] <-- Socket.IO --> S[Node.js server\nExpress + Socket.IO\nbackend/index.js]
 
-### AI-Powered Commands
-
-Trigger AI responses by sending special commands:
-
-1. **`/summarize`** – Generates a concise bullet-point summary of the last 10 chat messages, useful for catching up on conversation highlights
-2. **`/question <your question>`** – Ask AI a question with context from the last 6 recent messages; AI uses conversation context to provide relevant answers
-3. **`/environment`** – Retrieves and analyzes IoT sensor data from Firebase Realtime Database, providing status summaries and actionable insights (requires server configuration)
-
-### Content Safety
-
-- **Toxicity Detection**: Uses TensorFlow.js toxicity model to detect and filter harmful content in real-time
-- **Client-side Filtering**: Toxic messages are replaced with asterisks before being sent
-- **Customizable Threshold**: Toxicity sensitivity can be adjusted via `TOXICITY_THRESHOLD` variable
-
-### User Experience
-
-- **Typing Indicator**: "AI is typing..." indicator appears when the AI is processing a command
-- **Send on Enter**: Press Enter to send messages; Shift+Enter for new lines
-- **Auto-focus**: Message input is auto-focused on page load for quick typing
-- **Auto-scroll**: Chat view automatically scrolls to the latest message
-
-## 🏗️ Architecture
-
-### Project Structure
-
-```
-ChimChat/
-├── backend/
-│   ├── index.js           # Express + Socket.IO server with AI command handlers
-│   ├── package.json       # Backend dependencies (Express, Socket.IO, Firebase Admin, Ollama)
-│   ├── firebaseKey.json   # Firebase service account credentials (excluded from git)
-│   ├── rtdb.json          # Firebase Realtime Database credentials for sensors (optional)
-│   └── .gitignore         # Git ignore rules
-└── frontend/
-    ├── index.html         # HTML structure, chat display, and input fields
-    ├── styles.css         # Sage-themed CSS with responsive design
-    └── chat.js            # Socket.IO client logic, toxicity filtering, and UI interactions
+  S --> F[Firebase Firestore\nmessages collection]
+  S -. optional .-> R[Firebase Realtime Database\nIoT sensor JSON]
+  S -. optional .-> O[Ollama\nlocal LLM server]
 ```
 
-### Technology Stack
+### Components and responsibilities
 
-**Backend:**
+- **Frontend (static files):** Renders the chat UI, stores the user’s display name in localStorage, performs client-side toxicity screening, and talks to the backend over Socket.IO.
+- **Backend (Node.js):** Serves static frontend assets, accepts Socket.IO chat events, writes/reads messages in Firestore, and runs AI command handlers by calling Ollama.
+- **Firebase Firestore:** Stores chat messages in a `messages` collection.
+- **Firebase Realtime Database (optional):** Source of sensor JSON consumed by the `/environment` command.
+- **Ollama (optional):** Provides LLM responses for `/summarize`, `/question`, and `/environment`.
 
-- **Express.js 5.x** – Web server framework
-- **Socket.IO 4.x** – Real-time bidirectional communication
-- **Firebase Admin SDK 13.x** – Firestore for message storage and optional Realtime Database for sensor data
-- **Ollama SDK** – Local AI model integration for chat summarization and Q&A
-- **CORS** – Cross-origin resource sharing
-- **dotenv** – Environment variable management
+### Data flow (happy path)
 
-**Frontend:**
+1. User opens the app in a browser (served by Express static hosting).
+2. The browser connects to the backend via Socket.IO.
+3. On connection, the backend reads the last 10 Firestore messages and emits them to the newly connected client.
+4. When the user sends a message:
+   - The frontend runs a toxicity check and replaces toxic content with `*****`.
+   - The frontend emits `chatMessage` to the server.
+   - The server stores the message in Firestore and broadcasts it to all clients.
+5. If the message is an AI command (`/summarize`, `/question`, `/environment`), the server:
+   - Emits `typing` to indicate AI is processing.
+   - Fetches context (recent Firestore messages and/or RTDB sensor JSON).
+   - Calls Ollama and broadcasts the AI response as a chat message.
+   - Writes the AI response back to Firestore.
 
-- **HTML5** – Semantic structure
-- **CSS3** – Sage-themed responsive design with flexbox and grid
-- **Socket.IO Client** – Real-time event handling
-- **TensorFlow.js Toxicity Model** – Client-side content filtering
-- **Bootstrap 5.3** – Utility CSS framework (included for optional styling)
-- **Poppins Font** – Google Fonts for typography
+## Tech Stack
 
-## 📋 Requirements
+### Backend
 
-- **Node.js** 18+ (recommended 18.x or later)
-- **npm** 9+
-- Firebase project with Firestore enabled (for message storage)
-- Ollama installed locally with a model (e.g., llama3, llama2) for AI features
-- Optional: Firebase Realtime Database for `/environment` command
+- Node.js
+- Express ([backend/package.json](backend/package.json))
+- Socket.IO server ([backend/package.json](backend/package.json))
+- Firebase Admin SDK (Firestore + optional Realtime Database) ([backend/index.js](backend/index.js))
+- Ollama JavaScript client ([backend/index.js](backend/index.js))
+- dotenv and CORS ([backend/index.js](backend/index.js))
 
-## 🚀 Setup and Deployment
+### Frontend
 
-### 1. Local Development (localhost)
+- HTML/CSS/vanilla JavaScript ([frontend/index.html](frontend/index.html), [frontend/styles.css](frontend/styles.css), [frontend/chat.js](frontend/chat.js))
+- Socket.IO client (loaded via CDN in [frontend/index.html](frontend/index.html))
+- TensorFlow.js + Toxicity model (loaded via CDN in [frontend/index.html](frontend/index.html))
+- Bootstrap CSS (loaded via CDN in [frontend/index.html](frontend/index.html))
 
-#### Step 1: Install Backend Dependencies
+## Repository Structure
 
-```bash
-cd backend
-npm install
+```
+.
+├── backend/                 # Node.js server (Express + Socket.IO) and Firebase/Ollama integration
+├── frontend/                # Static frontend (HTML/CSS/JS)
+├── ui-ux.png                 # Screenshot used in this README
+└── README.md
 ```
 
-#### Step 2: Configure Firebase
+## Getting Started (Local Development)
 
-1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Enable Firestore Database
-3. Create a service account and download the JSON key file
-4. Save it as `backend/firebaseKey.json`
+### Prerequisites
 
-#### Step 3: Create Environment File
+- Node.js and npm
+- A Firebase project with **Firestore enabled**
+- A Firebase service account key JSON (required at runtime by the backend)
+- Optional: Ollama installed and running locally if you want AI commands
+- Optional: Firebase Realtime Database enabled if you want `/environment`
 
-Create a `.env` file in the `backend/` directory:
+### Install steps
 
-```env
-# Ollama configuration
-OLLAMA_HOST=http://127.0.0.1:11434
-OLLAMA_MODEL=llama3
-
-# Optional: Firebase Realtime Database for sensors
-SENSOR_DATABASE_URL=https://your-project.firebaseio.com
-SENSOR_DATA_PATH=/sensors
-```
-
-#### Step 4: Start Backend Server
-
-```bash
-cd backend
-node index.js
-```
-
-The server will run on `http://localhost:3000`
-
-#### Step 5: Configure Frontend Socket URL
-
-In `frontend/chat.js`, ensure the socket connection points to localhost:
-
-```javascript
-const socket = io('http://localhost:3000');
-```
-
-#### Step 6: Open the App
-
-- Visit `http://localhost:3000` in your browser (served by the Express server), or
-- Open `frontend/index.html` directly in your browser
-
-### 2. Remote Deployment with ngrok
-
-To test from a phone or share externally:
-
-1. **Start the backend** (see Step 1–4 above)
-
-2. **In a new terminal, run ngrok:**
+1. Install backend dependencies:
 
    ```bash
-   ngrok http 3000
+   cd backend
+   npm install
    ```
 
-3. **Copy the HTTPS URL** from ngrok output (e.g., `https://your-subdomain.ngrok-free.app`)
+2. Add Firebase credentials:
 
-4. **Update frontend socket URL** in `frontend/chat.js`:
+   - Place your Firebase Admin service account key at `backend/firebaseKey.json`.
+   - This file is git-ignored by [backend/.gitignore](backend/.gitignore).
 
-   ```javascript
-   const socket = io('https://your-subdomain.ngrok-free.app');
-   ```
+3. Configure environment variables:
 
-5. **Access from your phone or externally:**
-   - Use the ngrok URL in your mobile browser
-   - Share the link with others to collaborate in real-time
+   - Create `backend/.env` (also git-ignored).
 
-### 3. Production Deployment
+### Environment variables
 
-For production, consider:
+The backend loads environment variables via `dotenv` in [backend/index.js](backend/index.js).
 
-- Deploy the backend to services like **Heroku**, **Railway**, **Render**, or **AWS**
-- Use environment variables for all sensitive data (Firebase keys, Ollama host, database URLs)
-- Set `CORS` origin to your production domain
-- Use a reverse proxy (nginx) for security
-- Enable HTTPS/SSL
-- Update the frontend socket URL to your production domain
+| Name                  | Purpose                                                           | Example                            | Required?                                 |
+| --------------------- | ----------------------------------------------------------------- | ---------------------------------- | ----------------------------------------- |
+| `OLLAMA_HOST`         | Ollama API base URL                                               | `http://127.0.0.1:11434`           | No (defaults to `http://127.0.0.1:11434`) |
+| `OLLAMA_MODEL`        | Ollama model name for chat                                        | `llama3`                           | No (defaults to `llama3`)                 |
+| `SENSOR_DATABASE_URL` | Enables Firebase Realtime Database integration for `/environment` | `https://<project>.firebaseio.com` | No (only required for `/environment`)     |
+| `SENSOR_DATA_PATH`    | RTDB path to fetch sensor JSON                                    | `/` or `/sensors`                  | No (defaults to `/`)                      |
 
-## 🔧 Configuration
+### Run commands
 
-### Environment Variables (`.env`)
+From the backend directory:
 
-| Variable              | Default                  | Description                                         |
-| --------------------- | ------------------------ | --------------------------------------------------- |
-| `OLLAMA_HOST`         | `http://127.0.0.1:11434` | URL where Ollama API is running                     |
-| `OLLAMA_MODEL`        | `llama3`                 | Ollama model name (e.g., llama3, llama2, mistral)   |
-| `SENSOR_DATABASE_URL` | (none)                   | Firebase Realtime Database URL for IoT sensor data  |
-| `SENSOR_DATA_PATH`    | `/`                      | JSON path in Realtime Database to fetch sensor data |
-
-### Frontend Customization
-
-- **Socket URL**: Edit `frontend/chat.js` line 1
-- **Toxicity Threshold**: Edit `frontend/chat.js` line 6 (0.0–1.0, higher = stricter)
-- **Theme Colors**: Edit `frontend/styles.css` for sage-green and other colors
-- **Max History Messages**: Change values in backend `fetchLastMessages()` calls
-
-## 📱 Usage Examples
-
-### Sending a Regular Message
-
-1. Enter your name in the top-right input field
-2. Type your message in the chat input
-3. Press **Enter** or click the Send button
-
-### Summarizing Conversation
-
-```
-/summarize
+```bash
+cd backend
+npm start
 ```
 
-AI will analyze the last 10 messages and provide a bullet-point summary.
+This starts the server on `http://localhost:3000` (see [backend/index.js](backend/index.js)).
 
-### Asking a Question
+Notes:
 
+- There is no lint script configured.
+- `npm test` currently exits with an error placeholder (see [backend/package.json](backend/package.json)).
+
+## Configuration
+
+### Where config lives
+
+- Backend environment variables: `backend/.env` (loaded by `dotenv`)
+- Firebase Admin credentials: `backend/firebaseKey.json` (required)
+- Optional sensor credentials: `backend/rtdb.json` (see “Needs confirmation” below)
+
+### How the frontend is served
+
+The backend serves the frontend via `express.static('../frontend')` in [backend/index.js](backend/index.js). This is sensitive to the process working directory (see “Troubleshooting”).
+
+## Usage
+
+### Core workflow
+
+1. Start the backend server.
+2. Open `http://localhost:3000`.
+3. Enter a name (stored in localStorage).
+4. Send messages. Messages are broadcast to all connected clients and persisted to Firestore.
+
+### AI commands
+
+- `/summarize`
+  - Server fetches the last 10 stored messages and asks Ollama to summarize them.
+- `/question <your question>`
+  - Server fetches the last 6 stored messages as context and asks Ollama to answer.
+- `/environment`
+  - If `SENSOR_DATABASE_URL` is configured, the server reads JSON from Realtime Database and asks Ollama to summarize/analyze it.
+
+### Screenshot
+
+- [ui-ux.png](ui-ux.png)
+
+## API / Interfaces
+
+ChimChat exposes no documented HTTP API routes. The primary interface is Socket.IO.
+
+### Socket.IO events
+
+**Client → Server**
+
+- `chatMessage`
+  - Payload: `{ name: string, message: string }`
+
+**Server → Client**
+
+- `chatMessage`
+  - Payload: `{ name: string, message: string }`
+- `typing`
+  - Payload: `{ name: 'AI', typing: boolean }`
+
+### Auth model
+
+There is no authentication or authorization layer in the current code. Any client that can reach the Socket.IO server can send messages.
+
+## Data Model
+
+### Firestore
+
+Messages are stored in a Firestore collection named `messages` (see [backend/index.js](backend/index.js)).
+
+Each document contains:
+
+- `name` (string)
+- `message` (string)
+- `timestamp` (Firestore server timestamp)
+
+### Realtime Database (optional)
+
+The `/environment` command reads arbitrary JSON from Realtime Database at `SENSOR_DATA_PATH` (default `/`). No schema is enforced by the application.
+
+## Testing & Quality
+
+- No automated tests are implemented.
+- No CI configuration is present in the repository.
+- Frontend dependencies are loaded via CDN; the `frontend/node_modules` directory is not required for runtime in the current setup.
+
+## Deployment
+
+No deployment configuration (Docker, IaC, or CI/CD) is present in this repository.
+
+What exists today:
+
+- The backend can be run as a single Node.js process (`npm start` in `backend/`).
+- The frontend is served from the backend process.
+- `ngrok` is listed as a backend dependency ([backend/package.json](backend/package.json)), but there is no scripted integration.
+
+Production notes (based on current implementation):
+
+- CORS is configured with `origin: '*'` for Socket.IO, which is likely too permissive for production.
+- The frontend Socket.IO URL is hard-coded (see “Sharp edges”).
+
+## Troubleshooting / FAQ
+
+### The server serves a blank page or 404s for frontend assets
+
+The backend uses `express.static('../frontend')` (relative path) in [backend/index.js](backend/index.js). Start the server from the `backend/` directory:
+
+```bash
+cd backend
+npm start
 ```
-/question What was the main topic we discussed?
-```
 
-AI will use the last 6 messages as context and provide an answer.
+### `Error: Cannot find module './firebaseKey.json'`
 
-### Analyzing Sensor Data
+You need a Firebase Admin service account key at `backend/firebaseKey.json`.
 
-```
-/environment
-```
+### `/summarize` and `/question` do nothing or error
 
-AI will fetch IoT sensor data from Firebase Realtime Database and provide insights (only if configured).
+These commands require an Ollama server reachable at `OLLAMA_HOST` (default `http://127.0.0.1:11434`) and a model available (default `OLLAMA_MODEL=llama3`).
 
-## 🛡️ Safety & Moderation
+### `/environment` says sensors are not configured
 
-- **Toxicity Filtering**: Messages flagged as toxic are automatically replaced with `*****` before sending
-- **No External Scripts**: Uses local TensorFlow.js model for filtering; no data sent to external services
-- **Client-side Processing**: Toxicity check happens in the browser for privacy
+Set `SENSOR_DATABASE_URL` in `backend/.env`. The server will disable `/environment` when it is not set.
 
-## 🐛 Troubleshooting
+### Toxicity model fails to load
 
-| Issue                        | Solution                                                                          |
-| ---------------------------- | --------------------------------------------------------------------------------- |
-| Can't connect to backend     | Ensure `node index.js` is running and firebaseKey.json exists                     |
-| "OLLAMA_HOST not found"      | Ensure Ollama is running on `http://127.0.0.1:11434` or set `OLLAMA_HOST` env var |
-| Messages not persisting      | Check Firebase Firestore is enabled and credentials are valid                     |
-| `/environment` command fails | Set `SENSOR_DATABASE_URL` env var with your Firebase Realtime DB URL              |
-| Toxicity model fails to load | Ensure TensorFlow.js and toxicity model CDN is accessible                         |
-| ngrok URL not working        | Recheck the URL is copied correctly and update `frontend/chat.js`                 |
+The toxicity model is loaded via CDN scripts in [frontend/index.html](frontend/index.html). If those CDN requests fail, messages will still send (without filtering).
 
-## 📝 API Reference
+## Roadmap
 
-### Socket Events
+No roadmap, issues, or TODO markers are present in the repository.
 
-**Client → Server:**
+### Planned Improvements (not implemented)
 
-- `chatMessage`: Emit a new chat message
-  ```javascript
-  socket.emit('chatMessage', { name: 'John', message: 'Hello!' });
-  ```
+- Make frontend Socket.IO endpoint configurable (or default to `io()`), instead of a hard-coded ngrok URL in [frontend/chat.js](frontend/chat.js).
+- Make static file serving path robust (use an absolute path based on `__dirname`), instead of a working-directory-relative `../frontend` in [backend/index.js](backend/index.js).
+- Clarify and/or implement sensor credential configuration (see “Needs confirmation”).
+- Add basic tests for AI command handlers and Firestore persistence.
+- Add authentication if the app is intended to be exposed publicly.
 
-**Server → Client:**
+## License
 
-- `chatMessage`: Receive a new message
-  ```javascript
-  socket.on('chatMessage', data => {
-    console.log(`${data.name}: ${data.message}`);
-  });
-  ```
-- `typing`: Typing indicator status
-  ```javascript
-  socket.on('typing', payload => {
-    if (payload.name === 'AI' && payload.typing) {
-      console.log('AI is typing...');
-    }
-  });
-  ```
+The backend package declares `ISC` in [backend/package.json](backend/package.json). There is no top-level `LICENSE` file.
 
-## 📄 License
+## Contributing
 
-This project is open source and available under the ISC License.
+If you intend to accept contributions publicly, consider adding:
 
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to submit issues, fork the repository, or create pull requests.
-
-## 📧 Questions?
-
-For questions or feedback, open an issue in the repository.
+- A top-level `LICENSE`
+- A `CONTRIBUTING.md`
+- A basic code of conduct
