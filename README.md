@@ -162,10 +162,6 @@ The backend serves the frontend via `express.static('../frontend')` in [backend/
 - `/environment`
   - If `SENSOR_DATABASE_URL` is configured, the server reads JSON from Realtime Database and asks Ollama to summarize/analyze it.
 
-### Screenshot
-
-- [ui-ux.png](ui-ux.png)
-
 ## API / Interfaces
 
 ChimChat exposes no documented HTTP API routes. The primary interface is Socket.IO.
